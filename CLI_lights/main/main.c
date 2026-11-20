@@ -1,8 +1,14 @@
 /*
 Author: Samuel Gathemia
 This program is provided with no warranties
-Program under GNU license
+Program under MIT license 
 Done on 24/5/2026
+>> this is a continuation from prevoius uart_cli.c, 
+but with a more modular approach and better code structure. 
+The main idea is to have a uart task that listens for commands and then calls the appropriate function for each led. Each led has its own task that handles the on, off and blink modes.
+ The user can choose which led to control by sending the corresponding command (1, 2 or 3) through the uart. 
+ The user can also choose the mode for each led by sending the corresponding command (1 for on, 2 for off and 3 for blink). 
+ The program will echo back the received command and the chosen function for better user experience.
 Enjoy!
 */
 
@@ -50,7 +56,7 @@ void init(){
     uart_param_config(UART_PORT, &uart_config);
     //configure uart pins
     uart_set_pin(UART_PORT, TXD_PIN, RXD_PIN, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
-    //configure gpio
+    //configure gpio    
     gpio_reset_pin(LED1_GPIO);
     gpio_reset_pin(LED2_GPIO);
     gpio_reset_pin(LED3_GPIO);
@@ -65,7 +71,7 @@ typedef enum{
 }led_mode_t;
 // define a tructure for the leds
 typedef struct {
-    int led_gpio;
+    gpio_num_t led_gpio;
     led_mode_t led_mode;
 }led_config_t;
 //innitialize the led configs
@@ -82,7 +88,7 @@ led_config_t led3 = {
         .led_mode = LED_OFF
 };
 
-void led1_func(){
+void led_func(led_config_t *led){
     const char* querry = "Choose led task (1 - 3):\n 1. on\n 2. off\n 3. blink\n";
     uart_write_bytes(UART_NUM_0, (const char*)querry, strlen(querry));
 
@@ -98,99 +104,19 @@ void led1_func(){
             uart_write_bytes(UART_PORT, "\n", 1);
 
             if (strncmp((char*)data, "1", 1) == 0){
-                led1.led_mode = LED_ON;
+                led->led_mode = LED_ON;
                 uart_write_bytes(UART_NUM_0, "led on\n", strlen("led on\n"));
                 state = 0;
 
             }
             else if (strncmp((char*)data, "2", 1) == 0){
-                led1.led_mode = LED_OFF;
+                led->led_mode = LED_OFF;
                 uart_write_bytes(UART_NUM_0, "led off\n", strlen("led off\n"));
                 state = 0;
 
             }
             else if (strncmp((char*)data, "3", 1) == 0){
-                led1.led_mode = LED_BLINK;
-                uart_write_bytes(UART_NUM_0, "led blinking\n", strlen("led blinking\n"));
-                state = 0;
-
-            }
-            else{
-                uart_write_bytes(UART_NUM_0, "Invalid function\n", strlen("Invalid function\n"));
-
-            }
-        }
-    }
-}
-void led2_func(){
-    const char* querry = "Choose led task (1 - 3):\n 1. on\n 2. off\n 3. blink\n";
-    uart_write_bytes(UART_NUM_0, (const char*)querry, strlen(querry));
-
-    uint8_t data[RX_BUF_SIZE];
-    int state = 1;
-    while (state){
-        int length = uart_read_bytes(UART_PORT, data, RX_BUF_SIZE - 1, pdMS_TO_TICKS(1000));
-
-        if (length > 0){
-            data[length] = '\0';
-            uart_write_bytes(UART_PORT,"Function: ",strlen("Function: "));
-            uart_write_bytes(UART_NUM_0, (char *)data, length);
-            uart_write_bytes(UART_PORT, "\n", 1);
-
-            if (strncmp((char*)data, "1", 1) == 0){
-                led2.led_mode = LED_ON;
-                uart_write_bytes(UART_NUM_0, "led on\n", strlen("led on\n"));
-                state = 0;
-
-            }
-            else if (strncmp((char*)data, "2", 1) == 0){
-                led2.led_mode = LED_OFF;
-                uart_write_bytes(UART_NUM_0, "led off\n", strlen("led off\n"));
-                state = 0;
-
-            }
-            else if (strncmp((char*)data, "3", 1) == 0){
-                led2.led_mode = LED_BLINK;
-                uart_write_bytes(UART_NUM_0, "led blinking\n", strlen("led blinking\n"));
-                state = 0;
-
-            }
-            else{
-                uart_write_bytes(UART_NUM_0, "Invalid function\n", strlen("Invalid function\n"));
-
-            }
-        }
-    }
-}
-void led3_func(){
-    const char* querry = "Choose led task (1 - 3):\n 1. on\n 2. off\n 3. blink\n";
-    uart_write_bytes(UART_NUM_0, (const char*)querry, strlen(querry));
-
-    uint8_t data[RX_BUF_SIZE];
-    int state = 1;
-    while (state){
-        int length = uart_read_bytes(UART_PORT, data, RX_BUF_SIZE - 1, pdMS_TO_TICKS(1000));
-
-        if (length > 0){
-            data[length] = '\0';
-            uart_write_bytes(UART_PORT,"Function: ",strlen("Function: "));
-            uart_write_bytes(UART_NUM_0, (char *)data, length);
-            uart_write_bytes(UART_PORT, "\n", 1);
-
-            if (strncmp((char*)data, "1", 1) == 0){
-                led3.led_mode = LED_ON;
-                uart_write_bytes(UART_NUM_0, "led on\n", strlen("led on\n"));
-                state = 0;
-
-            }
-            else if (strncmp((char*)data, "2", 1) == 0){
-                led3.led_mode = LED_OFF;
-                uart_write_bytes(UART_NUM_0, "led off\n", strlen("led off\n"));
-                state = 0;
-
-            }
-            else if (strncmp((char*)data, "3", 1) == 0){
-                led3.led_mode = LED_BLINK;
+                led->led_mode = LED_BLINK;
                 uart_write_bytes(UART_NUM_0, "led blinking\n", strlen("led blinking\n"));
                 state = 0;
 
@@ -229,13 +155,13 @@ void uart_task(void *arg){
             uart_write_bytes(UART_PORT, "\n", 1);
 
             if (strncmp((char*)data, "1", 1) == 0){
-                led1_func();
+                led_func(&led1);
             }
             else if (strncmp((char*)data, "2", 1) == 0){
-                led2_func();
+                led_func(&led2);
             }
             else if (strncmp((char*)data, "3", 1) == 0){
-                led3_func();
+                led_func(&led3);
             }
             else{
                 uart_write_bytes(UART_NUM_0, "Unknown command\n", strlen("Unknown command\n"));
@@ -246,73 +172,28 @@ void uart_task(void *arg){
 }
 
 //led task
-void led1_task(void *arg){
+void led_task(void *arg){
+    led_config_t *led = (led_config_t *)arg;
     while(1){
-        switch(led1.led_mode){
+        switch(led->led_mode){
             case LED_ON:
-            gpio_set_level(led1.led_gpio, 1);
-            vTaskDelay(pdMS_TO_TICKS(50));
+            gpio_set_level(led->led_gpio, 1);
+            vTaskDelay(pdMS_TO_TICKS(500));
             break;
 
             case LED_OFF:
-            gpio_set_level(led1.led_gpio, 0);
-            vTaskDelay(pdMS_TO_TICKS(50));
+            gpio_set_level(led->led_gpio, 0);
+            vTaskDelay(pdMS_TO_TICKS(500));
             break;
 
             case LED_BLINK:
-            gpio_set_level(led1.led_gpio, 1);
+            gpio_set_level(led->led_gpio, 1);
             vTaskDelay(pdMS_TO_TICKS(500));
-            gpio_set_level(led1.led_gpio, 0);
-            vTaskDelay(pdMS_TO_TICKS(500));
-            break;
-        }
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-}
-void led2_task(void *arg){
-    while(1){
-        switch(led2.led_mode){
-            case LED_ON:
-            gpio_set_level(led2.led_gpio, 1);
-            vTaskDelay(pdMS_TO_TICKS(50));
-            break;
-
-            case LED_OFF:
-            gpio_set_level(led2.led_gpio, 0);
-            vTaskDelay(pdMS_TO_TICKS(50));
-            break;
-
-            case LED_BLINK:
-            gpio_set_level(led2.led_gpio, 1);
-            vTaskDelay(pdMS_TO_TICKS(500));
-            gpio_set_level(led2.led_gpio, 0);
+            gpio_set_level(led->led_gpio, 0);
             vTaskDelay(pdMS_TO_TICKS(500));
             break;
-        }
-        vTaskDelay(pdMS_TO_TICKS(10));
-    }
-}
-void led3_task(void *arg){
-    while(1){
-        switch(led3.led_mode){
-            case LED_ON:
-            gpio_set_level(led3.led_gpio, 1);
-            vTaskDelay(pdMS_TO_TICKS(50));
-            break;
-
-            case LED_OFF:
-            gpio_set_level(led3.led_gpio, 0);
-            vTaskDelay(pdMS_TO_TICKS(50));
-            break;
-
-            case LED_BLINK:
-            gpio_set_level(led3.led_gpio, 1);
-            vTaskDelay(pdMS_TO_TICKS(500));
-            gpio_set_level(led3.led_gpio, 0);
-            vTaskDelay(pdMS_TO_TICKS(500));
-            break;
-        }
-        vTaskDelay(pdMS_TO_TICKS(10));
+        } 
+        vTaskDelay(pdMS_TO_TICKS(500));
     }
 }
 
@@ -322,8 +203,8 @@ void app_main(void)
     //create the rx task
     xTaskCreate(uart_task, "uart_task", 4096, NULL, 5, NULL);
     //create the led task
-    xTaskCreate(led1_task, "led1_task", 2048, NULL, 5, NULL);
-    xTaskCreate(led2_task, "led2_task", 2048, NULL, 5, NULL);
-    xTaskCreate(led3_task, "led3_task", 2048, NULL, 5, NULL);
+    xTaskCreate(led_task, "led1_task", 2048, &led1, 5, NULL);
+    xTaskCreate(led_task, "led2_task", 2048, &led2, 5, NULL);
+    xTaskCreate(led_task, "led3_task", 2048, &led3, 5, NULL);
 
 }
