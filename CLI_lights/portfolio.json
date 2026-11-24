@@ -1,0 +1,48 @@
+{
+  "slug": "cli-lights",
+  "title": "CLI Lights",
+  "tagline": "UART-controlled LEDs using ESP-IDF and FreeRTOS",
+  "description": "An ESP-IDF learning project that controls three LEDs from a serial command-line interface. Each LED can be turned on, turned off, or made to blink.",
+  "featured": true,
+  "stack": ["ESP32", "ESP-IDF", "FreeRTOS", "UART", "GPIO", "C"],
+  "repo": "https://github.com/samuelgathemia/ESP32-IDF/tree/main/CLI_lights",
+  "problem": "Simple LED control is often implemented as an unstructured demo. A clear command task and separate LED tasks make firmware behaviour easier to understand and extend.",
+  "objectives": [
+    "Control three LEDs through a serial menu",
+    "Demonstrate FreeRTOS tasks for independent LED control",
+    "Share command state between the UART task and LED tasks"
+  ],
+  "architecture": "The UART task reads serial input and selects an LED and action. Three independent LED tasks apply the selected mode to their GPIO outputs.",
+  "hardware": [
+    "ESP32 development board",
+    "Three LEDs",
+    "Three current-limiting resistors",
+    "USB-to-UART connection"
+  ],
+  "software": [
+    "ESP-IDF",
+    "FreeRTOS",
+    "C",
+    "UART0",
+    "GPIO"
+  ],
+  "directoryTree": "CLI_lights/\n├── CMakeLists.txt\n├── README.md\n├── portfolio.json\n├── docs/images/\n└── main/\n    ├── CMakeLists.txt\n    └── main.c",
+  "codeSnippet": {
+    "file": "main/main.c",
+    "startLine": 1,
+    "endLine": 40,
+    "language": "c",
+    "caption": "LED task entry point"
+  },
+  "lessons": [
+    "Task separation makes command handling and output control easier to reason about",
+    "Shared task state needs synchronization before the application becomes more complex",
+    "UART0 can share the serial interface used for boot output and flashing"
+  ],
+  "future": [
+    "Replace shared state with a message queue",
+    "Use esp_console command registration",
+    "Move GPIO assignments into Kconfig",
+    "Add automatic hardware-in-the-loop tests"
+  ]
+}
